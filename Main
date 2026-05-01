@@ -1,0 +1,93 @@
+const express = require("express");
+const app = express();
+const PORT = 3000;
+
+app.use(express.json());
+
+app.use((req, res, next) => {
+  const now = new Date().toLocaleTimeString();
+  console.log(`Request received at: ${now}`);
+  console.log(`${req.method} ${req.url}`);
+  next();
+});
+
+let users = [];
+let nextId = 1;
+
+const respond = (res, statusCode, message, extra = {}) => {
+  res.status(statusCode).json({
+    message,
+    time: new Date().toLocaleTimeString(),
+    ...extra,
+  });
+};
+
+app.get("/", (req, res) => {
+  respond(res, 200, "Server Running");
+});
+
+
+app.get("/users", (req, res) => {
+  respond(res, 200, "Users fetched successfully", { users });
+});
+
+
+app.get("/users/:id", (req, res) => {
+  const user = users.find((u) => u.id === parseInt(req.params.id));
+  if (!user) return respond(res, 404, "User not found");
+  respond(res, 200, "User fetched successfully", { user });
+});
+
+
+app.post("/users", (req, res) => {
+  const { name, email } = req.body;
+
+
+  if (!name || !email) {
+    return respond(res, 400, "Name and email are required");
+  }
+
+
+  const duplicate = users.find(
+    (u) => u.email.toLowerCase() === email.toLowerCase()
+  );
+  if (duplicate) {
+    return respond(res, 409, "Email already exists");
+  }
+
+  const newUser = { id: nextId++, name, email };
+  users.push(newUser);
+  respond(res, 201, "User added successfully", { user: newUser });
+});
+
+
+app.delete("/users/:id", (req, res) => {
+  const index = users.findIndex((u) => u.id === parseInt(req.params.id));
+  if (index === -1) return respond(res, 404, "User not found");
+
+  const deleted = users.splice(index, 1)[0];
+  respond(res, 200, "User deleted successfully", { user: deleted });
+});
+
+
+const ADMIN_EMAIL = "admin@gmail.com";
+const ADMIN_PASSWORD = "1234";
+
+app.post("/login", (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return respond(res, 400, "All fields required");
+  }
+
+  if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+    return respond(res, 200, "Login Success");
+  }
+
+  respond(res, 401, "Invalid Credentials");
+});
+
+
+app.listen(PORT, () => {
+  console.log(`Server is running on http://localhost:${PORT}`);
+});
